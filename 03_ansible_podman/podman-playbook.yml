@@ -1,0 +1,49 @@
+- hosts: podman
+  vars_files:
+      - vars.yaml
+  tasks:
+  - name: Update de paquetes de ubuntu
+    become: true
+    become_user: root
+    ansible.builtin.apt:
+      name: "*"
+      state: latest
+  - name: Correr apt-get update
+    become: true
+    become_user: root
+    ansible.builtin.apt:
+      update_cache: yes
+  - name: instalar podman
+    become: true
+    become_user: root
+    package:
+      name: "podman"
+      state: present
+  - name: Login en container registry de azure    
+    containers.podman.podman_login:
+      username: acrcasopractico2
+      password: "{{ passwordacr }}"
+      registry: acrcasopractico2.azurecr.io
+  - name: Pull de imagen app
+    containers.podman.podman_image:
+      name: acrcasopractico2.azurecr.io/vm-podman-app:casopractico2
+  - name: crear contenedor en vm
+    containers.podman.podman_container:
+      name: vm-casopractico2
+      image: acrcasopractico2.azurecr.io/vm-podman-app:casopractico2
+      state: started
+      detach: true
+      exposed_ports:
+        - 80
+      ports:
+        - 8080:80
+      #volumes: /home/:/usr/local/apache2/htdocs/
+  - name: habilitar servicio podman para que quede siempre corriendo
+    ansible.builtin.systemd_service:
+      name: podman-restart
+      enabled: true
+      masked: no
+  - name: start podman
+    ansible.builtin.systemd_service:
+      state: started
+      name: podman-restart
